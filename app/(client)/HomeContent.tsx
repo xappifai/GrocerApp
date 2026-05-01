@@ -20,14 +20,14 @@ interface HomeContentProps {
 
 // Category quick-links shown below the hero on mobile
 const CATEGORY_SHORTCUTS = [
-  { emoji: "🥦", label: "Veggies",   slug: "fruits-vegetables" },
-  { emoji: "🍓", label: "Fruits",    slug: "fruits-vegetables" },
-  { emoji: "🥛", label: "Dairy",     slug: "dairy-eggs"        },
-  { emoji: "🥩", label: "Meat",      slug: "meat-seafood"      },
-  { emoji: "🍞", label: "Bakery",    slug: "bakery"            },
-  { emoji: "🧃", label: "Drinks",    slug: "beverages"         },
-  { emoji: "🥜", label: "Snacks",    slug: "snacks"            },
-  { emoji: "🧺", label: "Pantry",    slug: "pantry"            },
+  { emoji: "🥛", label: "Dairy",    slug: "dairy"              },
+  { emoji: "🌾", label: "Grains",   slug: "rice-atta-grains"   },
+  { emoji: "🫘", label: "Daal",     slug: "daal-pulses"        },
+  { emoji: "🫙", label: "Oils",     slug: "oils-ghee"          },
+  { emoji: "🌶️", label: "Spices",  slug: "spices-masala"      },
+  { emoji: "🧴", label: "Sauces",   slug: "sauces-condiments"  },
+  { emoji: "🧃", label: "Drinks",   slug: "beverages"          },
+  { emoji: "🧹", label: "Cleaning", slug: "household-cleaning" },
 ];
 
 export default function HomeContent({
@@ -126,15 +126,16 @@ export default function HomeContent({
 
           {/* Category grid — xl only */}
           <div className="hidden xl:flex xl:items-center xl:justify-center xl:pr-10 xl:py-10">
-            <div className="grid grid-cols-3 gap-3">
-              {CATEGORY_SHORTCUTS.slice(0, 6).map(({ emoji, label }) => (
-                <div
+            <div className="grid grid-cols-4 gap-3">
+              {CATEGORY_SHORTCUTS.map(({ emoji, label, slug }) => (
+                <button
                   key={label}
-                  className="flex flex-col items-center gap-1.5 rounded-2xl bg-white/10 px-5 py-4 backdrop-blur-sm hover:bg-white/20 transition-colors cursor-pointer"
+                  onClick={() => handleCategory(activeCategory === slug ? "all" : slug)}
+                  className="flex flex-col items-center gap-1.5 rounded-2xl bg-white/10 px-4 py-4 backdrop-blur-sm hover:bg-white/20 transition-colors"
                 >
-                  <span className="text-3xl">{emoji}</span>
+                  <span className="text-2xl">{emoji}</span>
                   <span className="text-xs font-medium text-brand-100">{label}</span>
-                </div>
+                </button>
               ))}
             </div>
           </div>

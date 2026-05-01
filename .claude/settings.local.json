@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(find /Users/aghashahhaider/Documents/XAppifai/Product/grocerapp/app -name route.* -type f)"
+      "Bash(find /Users/aghashahhaider/Documents/XAppifai/Product/grocerapp/app -name route.* -type f)",
+      "WebSearch",
+      "WebFetch(domain:pakola.com.pk)",
+      "WebFetch(domain:alfatah.pk)",
+      "WebFetch(domain:www.daraz.pk)",
+      "WebFetch(domain:www.naheed.pk)"
     ]
   }
 }
