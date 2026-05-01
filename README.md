@@ -1,129 +1,185 @@
 # 🛒 GrocerApp
 
-A production-ready full-stack grocery web application with **Admin** and **Client** panels.
+A production-ready, full-stack grocery web application with a **Customer Storefront** and an **Admin Panel** — built as a **Progressive Web App (PWA)** installable on any device.
 
-Built with **Next.js 14 App Router**, **TypeScript**, **Tailwind CSS**, **Zustand**, **Prisma**, and **PostgreSQL**.
+**Live tech:** Next.js 14 App Router · TypeScript · Tailwind CSS · Supabase · Zustand · PWA
 
 ---
 
-## ✨ Features
+## ✨ Feature Overview
 
-### Client Panel
-- Browse & search products with category filters
-- Add to cart (persisted in localStorage)
-- Checkout with delivery details
-- View order history + live status tracking
+### 🧑‍💻 Customer Storefront
+| Feature | Details |
+|---|---|
+| Product browsing | Search, category filter, paginated grid (2-col mobile → 5-col desktop) |
+| Category shortcuts | Tap-to-filter icon grid on mobile home screen |
+| Product detail | Full page with stock indicator, rating display, and image |
+| Cart | Persistent via `localStorage` (Zustand persist), slide-in drawer |
+| Checkout | COD only · delivery details · GPS location pin · pre-filled from saved profile |
+| Order history | Date-range picker filter · expand/collapse · order status tracker |
+| Reorder | Price-diff modal showing current vs. original prices before re-adding to cart |
+| Profile | Save name, phone, address, city, and GPS pin — auto-fills checkout |
+| Auth | Email/password signup & login via Supabase Auth |
 
-### Admin Panel
-- Dashboard with revenue & order analytics
-- Full product CRUD (create, edit, delete)
-- Order management with status updates
-- Protected routes (ADMIN role only)
+### 🛠️ Admin Panel
+| Feature | Details |
+|---|---|
+| Dashboard | Revenue, orders, products, and customer count at a glance |
+| Products | Full CRUD — create, edit, delete with image URL and category |
+| Orders | Status management (Pending → Processing → Delivered) · search · status tabs · Google Maps link for delivery location |
+| Messages | Customer contact messages inbox with date range + subject + text search |
+
+### 📱 PWA & Mobile
+- Installable on iOS, Android, and desktop (Web App Manifest + Service Worker)
+- Native-style **bottom tab bar** on mobile (Shop / Orders / Cart / Profile)
+- Offline-capable via Workbox caching strategies
+- Safe-area inset support for iPhone notch
+
+### 📄 Marketing Pages
+- `/about` — Brand story, stats, values, and how it works
+- `/contact` — Contact form (saves to Supabase) + FAQ
+- `/privacy` — Full Privacy Policy
+- `/terms` — Full Terms of Service
 
 ---
 
 ## 🧱 Tech Stack
 
-| Layer | Choice | Reason |
-|-------|--------|--------|
-| Framework | Next.js 14 App Router | Full-stack, SSR, file-based routing |
-| Language | TypeScript | Type safety across frontend + backend |
-| Styling | Tailwind CSS | Utility-first, fast, consistent |
-| State | Zustand | Lightweight, no boilerplate |
-| ORM | Prisma | Type-safe DB queries, great DX |
-| Database | PostgreSQL | Production-grade relational DB |
-| Auth | JWT (HTTP-only cookies) | Stateless, secure, role-based |
-| Validation | Zod + React Hook Form | Runtime + compile-time safety |
+| Layer | Technology | Why |
+|---|---|---|
+| Framework | Next.js 14 (App Router) | SSR, RSC, file-based routing, image optimisation |
+| Language | TypeScript | End-to-end type safety |
+| Styling | Tailwind CSS | Utility-first, consistent design tokens |
+| Backend & DB | Supabase (PostgreSQL) | Auth, database, RLS, storage — zero-config |
+| SSR Auth | `@supabase/ssr` | Cookie-based sessions that work in Server Components |
+| State | Zustand | Lightweight global state with `persist` middleware |
+| Forms | React Hook Form + Zod | Validated, type-safe forms |
+| PWA | `@ducanh2912/next-pwa` | Workbox service worker, offline support |
+| Icons | Lucide React | Consistent, tree-shaken icon set |
+| Notifications | React Hot Toast | Non-intrusive toast feedback |
 
 ---
 
-## 📁 Folder Structure
+## 📁 Project Structure
 
 ```
 grocerapp/
 ├── app/
-│   ├── (auth)/                  # Auth route group (no navbar)
+│   ├── (auth)/                     # Auth pages (no navbar layout)
 │   │   ├── login/page.tsx
 │   │   └── signup/page.tsx
-│   ├── (client)/                # Storefront route group
-│   │   ├── layout.tsx           # Navbar + CartDrawer
-│   │   ├── page.tsx             # Homepage / product listing
+│   │
+│   ├── (client)/                   # Customer storefront
+│   │   ├── layout.tsx              # Navbar + BottomTabBar + CartDrawer + Footer
+│   │   ├── page.tsx                # Home — product listing
+│   │   ├── HomeContent.tsx         # Client component (search, filter, pagination)
+│   │   ├── about/page.tsx
 │   │   ├── cart/page.tsx
-│   │   ├── checkout/page.tsx
-│   │   ├── orders/page.tsx
-│   │   └── products/[id]/page.tsx
-│   ├── admin/                   # Admin panel
-│   │   ├── layout.tsx           # Sidebar layout + auth guard
-│   │   ├── page.tsx             # Dashboard
-│   │   ├── products/
-│   │   │   ├── page.tsx         # Products table
-│   │   │   ├── new/page.tsx     # Create product
-│   │   │   └── [id]/edit/page.tsx
-│   │   └── orders/page.tsx
-│   ├── api/                     # Next.js API routes (backend)
-│   │   ├── auth/
-│   │   │   ├── login/route.ts
-│   │   │   └── signup/route.ts
-│   │   ├── products/
-│   │   │   ├── route.ts         # GET all, POST create
-│   │   │   └── [id]/route.ts    # GET one, PUT update, DELETE
+│   │   ├── checkout/
+│   │   │   ├── page.tsx            # SSR — prefetches saved profile
+│   │   │   └── CheckoutContent.tsx
+│   │   ├── contact/
+│   │   │   ├── page.tsx
+│   │   │   └── ContactForm.tsx
 │   │   ├── orders/
-│   │   │   ├── route.ts         # GET (admin: all, client: own), POST create
-│   │   │   └── [id]/status/route.ts  # PATCH status
-│   │   └── dashboard/route.ts   # GET stats
+│   │   │   ├── page.tsx            # SSR — fetches user's orders
+│   │   │   └── OrdersContent.tsx   # Date-range filter, expand/collapse
+│   │   ├── privacy/page.tsx
+│   │   ├── products/[id]/
+│   │   │   ├── page.tsx            # SSR product detail
+│   │   │   └── ProductActions.tsx
+│   │   ├── profile/
+│   │   │   ├── page.tsx            # SSR — prefetches profile
+│   │   │   └── ProfileForm.tsx     # GPS + form
+│   │   └── terms/page.tsx
+│   │
+│   ├── admin/                      # Admin panel (auth-guarded)
+│   │   ├── layout.tsx              # Sidebar + role guard
+│   │   ├── page.tsx                # Dashboard
+│   │   ├── messages/
+│   │   │   ├── page.tsx
+│   │   │   └── MessagesContent.tsx # Date + subject + search filter
+│   │   ├── orders/
+│   │   │   ├── page.tsx
+│   │   │   └── AdminOrdersContent.tsx
+│   │   └── products/
+│   │       ├── page.tsx
+│   │       ├── new/page.tsx
+│   │       └── [id]/edit/page.tsx
+│   │
+│   ├── manifest.ts                 # PWA Web App Manifest
 │   ├── globals.css
-│   └── layout.tsx               # Root layout
+│   └── layout.tsx                  # Root layout + PWA meta
 │
 ├── components/
-│   ├── ui/                      # Reusable primitives
-│   │   ├── Button.tsx
-│   │   ├── Input.tsx
-│   │   └── index.tsx            # Badge, Modal, Spinner, etc.
+│   ├── ui/                         # Reusable primitives (Spinner, Badge, Modal…)
 │   ├── client/
-│   │   ├── ClientNavbar.tsx
-│   │   ├── ProductCard.tsx
+│   │   ├── BottomTabBar.tsx        # Mobile-only native-style tab bar
 │   │   ├── CartDrawer.tsx
-│   │   └── CategoryFilter.tsx
+│   │   ├── CategoryFilter.tsx
+│   │   ├── ClientNavbar.tsx
+│   │   ├── Footer.tsx
+│   │   ├── ProductCard.tsx
+│   │   └── ReorderModal.tsx
 │   └── admin/
 │       ├── AdminSidebar.tsx
 │       ├── DashboardStats.tsx
-│       ├── ProductForm.tsx
-│       └── OrdersTable.tsx
+│       ├── OrdersTable.tsx
+│       └── ProductForm.tsx
 │
 ├── hooks/
 │   ├── useAuth.ts
-│   ├── useProducts.ts
-│   └── useOrders.ts
+│   ├── useOrders.ts
+│   └── useProducts.ts
 │
 ├── lib/
-│   ├── utils.ts
 │   ├── constants.ts
-│   └── mockData.ts
-│
-├── prisma/
-│   ├── schema.prisma
-│   └── seed.ts
+│   ├── utils.ts
+│   └── supabase/
+│       ├── client.ts               # Browser Supabase client
+│       ├── server.ts               # Server Supabase client (cookies)
+│       └── mappers.ts              # DB row → app type mappers
 │
 ├── services/
-│   ├── api.ts                   # Axios instance
 │   ├── authService.ts
+│   ├── contactService.ts
+│   ├── orderService.ts
 │   ├── productService.ts
-│   └── orderService.ts
+│   └── profileService.ts
 │
 ├── store/
-│   ├── authStore.ts
-│   ├── cartStore.ts
+│   ├── authStore.ts                # User session + role
+│   ├── cartStore.ts                # Cart items (persisted to localStorage)
 │   └── uiStore.ts
 │
-├── types/
-│   └── index.ts
+├── supabase/
+│   └── schema.sql                  # Full DB schema + RLS policies + seed data
 │
-├── middleware.ts                 # Route protection
-├── .env.example
-├── next.config.ts
+├── types/
+│   └── index.ts                    # Shared TypeScript interfaces
+│
+├── middleware.ts                    # Route protection (Supabase session refresh)
+├── next.config.js                   # PWA + image domains + optimisePackageImports
 ├── tailwind.config.ts
 └── tsconfig.json
 ```
+
+---
+
+## 🗄️ Database Schema (Supabase / PostgreSQL)
+
+```sql
+-- Auth handled by Supabase Auth (auth.users)
+
+profiles          -- Extended user data: name, phone, address, lat/lng, role
+categories        -- Product categories (id, name, slug)
+products          -- id, name, description, price, image, stock, category_id
+orders            -- id, user_id, total_price, status, delivery fields, lat/lng
+order_items       -- id, order_id, product_id, product_name, quantity, price
+contact_messages  -- id, name, email, subject, message, created_at
+```
+
+Row-Level Security is enabled on all tables. An `is_admin()` helper function gates admin-only operations.
 
 ---
 
@@ -131,12 +187,12 @@ grocerapp/
 
 ### Prerequisites
 - Node.js 18+
-- PostgreSQL (local or Docker)
+- A [Supabase](https://supabase.com) project (free tier is fine)
 - npm / yarn / pnpm
 
 ---
 
-### Step 1 — Clone & Install
+### 1 — Clone & install
 
 ```bash
 git clone https://github.com/your-username/grocerapp.git
@@ -146,227 +202,120 @@ npm install
 
 ---
 
-### Step 2 — Configure Environment
+### 2 — Configure environment variables
 
-```bash
-cp .env.example .env.local
-```
-
-Edit `.env.local`:
+Create `.env.local` in the project root:
 
 ```env
-# Required for real backend
-DATABASE_URL=postgresql://postgres:password@localhost:5432/grocerapp
-JWT_SECRET=your-super-secret-key
-
-# Set to "false" to use real API routes
-NEXT_PUBLIC_USE_MOCK=true
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-anon-public-key
 ```
 
-> **Quick start without PostgreSQL:** Leave `NEXT_PUBLIC_USE_MOCK=true`.  
-> The app runs entirely on mock data — no DB needed.
+Both values are found in your Supabase project under **Settings → API**.
 
 ---
 
-### Step 3 — Database Setup (skip if using mock mode)
+### 3 — Set up the database
 
-```bash
-# Generate Prisma client
-npx prisma generate
+Run the contents of `supabase/schema.sql` in your Supabase **SQL Editor**.
 
-# Create tables
-npx prisma db push
+This creates all tables, RLS policies, triggers, and seeds sample categories + products.
 
-# Seed with sample data
-npx prisma db seed
+---
+
+### 4 — Create an admin user
+
+1. Sign up through the app at `/signup`
+2. In Supabase SQL Editor, promote the account:
+
+```sql
+UPDATE profiles
+SET role = 'ADMIN'
+WHERE email = 'your@email.com';
 ```
 
 ---
 
-### Step 4 — Run Development Server
+### 5 — Run the dev server
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000)
+Open [http://localhost:3000](http://localhost:3000) — admin panel is at `/admin`.
 
 ---
 
-## 🔑 Demo Credentials
+## 🔑 Default Access
 
-| Role | Email | Password |
-|------|-------|----------|
-| Admin | admin@grocerapp.com | admin123 |
-| Client | ahmed@example.com | client123 |
-
----
-
-## 📡 API Endpoints
-
-### Auth
-```
-POST /api/auth/signup      — Register new client
-POST /api/auth/login       — Login (admin or client)
-```
-
-### Products
-```
-GET    /api/products              — List (paginated, filterable)
-GET    /api/products/:id          — Single product
-POST   /api/products              — Create (ADMIN only)
-PUT    /api/products/:id          — Update (ADMIN only)
-DELETE /api/products/:id          — Delete (ADMIN only)
-GET    /api/products/categories   — All categories
-```
-
-### Orders
-```
-POST   /api/orders                — Place order (CLIENT)
-GET    /api/orders                — All orders (ADMIN) / own orders (CLIENT)
-PATCH  /api/orders/:id/status     — Update status (ADMIN only)
-```
-
-### Dashboard
-```
-GET    /api/dashboard             — Stats: revenue, orders, products, customers (ADMIN)
-```
+| Role | How to access |
+|---|---|
+| **Customer** | Sign up at `/signup` |
+| **Admin** | Sign up, then run the SQL above to set `role = 'ADMIN'` |
 
 ---
 
-## 🗄️ Database Schema
-
-```prisma
-model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  password  String   // bcrypt hashed
-  role      Role     @default(CLIENT)
-  orders    Order[]
-  createdAt DateTime @default(now())
-}
-
-model Category {
-  id       String    @id @default(cuid())
-  name     String    @unique
-  slug     String    @unique
-  products Product[]
-}
-
-model Product {
-  id          String      @id @default(cuid())
-  name        String
-  description String?
-  price       Float
-  image       String?
-  stock       Int         @default(0)
-  categoryId  String
-  category    Category    @relation(fields: [categoryId], references: [id])
-  orderItems  OrderItem[]
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-}
-
-model Order {
-  id              String      @id @default(cuid())
-  userId          String
-  user            User        @relation(fields: [userId], references: [id])
-  items           OrderItem[]
-  totalPrice      Float
-  status          OrderStatus @default(PENDING)
-  deliveryName    String
-  deliveryPhone   String
-  deliveryAddress String
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-}
-
-model OrderItem {
-  id        String  @id @default(cuid())
-  orderId   String
-  order     Order   @relation(fields: [orderId], references: [id])
-  productId String
-  product   Product @relation(fields: [productId], references: [id])
-  quantity  Int
-  price     Float   // snapshot at time of order
-}
-
-enum Role {
-  ADMIN
-  CLIENT
-}
-
-enum OrderStatus {
-  PENDING
-  PROCESSING
-  DELIVERED
-}
-```
-
----
-
-## 🔄 Switching from Mock to Real API
-
-1. Set `NEXT_PUBLIC_USE_MOCK=false` in `.env.local`
-2. Ensure `DATABASE_URL` and `JWT_SECRET` are set
-3. Run `npx prisma db push && npx prisma db seed`
-4. Restart the dev server
-
-All services use the same interface — the mock/real swap is fully transparent to components.
-
----
-
-## 🧪 Testing Mock Credentials
-
-The mock layer (`lib/mockData.ts`) ships with:
-- **12 products** across 7 categories
-- **3 sample orders** in various statuses
-- **Admin + Client** user accounts
-
----
-
-## 📦 Production Build
+## 📦 Build & Deploy
 
 ```bash
+# Production build
 npm run build
 npm start
 ```
 
----
-
-## 🌐 Deployment (Vercel)
+### Deploy to Vercel (recommended)
 
 ```bash
-# Install Vercel CLI
 npm i -g vercel
-
-# Deploy
 vercel
-
-# Set env vars in Vercel dashboard:
-# DATABASE_URL, JWT_SECRET, NEXT_PUBLIC_USE_MOCK=false
 ```
 
-For DB, use [Neon](https://neon.tech) or [Supabase](https://supabase.com) (both free PostgreSQL).
+Add the two environment variables in the **Vercel dashboard → Project → Settings → Environment Variables**:
+
+```
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+```
+
+No other configuration needed — Vercel auto-detects Next.js.
+
+> **Database:** Your Supabase project is already hosted — no separate DB deployment needed.
 
 ---
 
-## ⚡ Performance Notes
+## ⚡ Performance & Accessibility
 
-- Product list uses server-side pagination (8/page)
-- Cart state persisted to `localStorage` via Zustand persist
-- Images lazy-loaded via Next.js `<Image>` with remote pattern allowlist
-- Admin route guard: middleware (token presence) + layout (role check)
+| Optimisation | Detail |
+|---|---|
+| SSR product pages | Homepage and product detail are server-rendered for fast FCP |
+| `next/image` | AVIF/WebP formats, lazy loading, `priority` on first 4 cards |
+| `optimizePackageImports` | Tree-shakes lucide-react at build time |
+| Cart hydration fix | `mounted` state prevents Zustand persist hydration mismatch |
+| Dynamic CartDrawer | Loaded client-side only (`ssr: false`) — not in initial JS bundle |
+| Heading hierarchy | h1 → h2 → h3 maintained across all pages |
+| ARIA labels | All icon-only buttons have `aria-label` |
+| Colour contrast | All text meets WCAG AA minimum (4.5:1) |
+| PWA offline | Workbox caches shell + assets for offline browsing |
 
 ---
 
-## 🛣️ What's Next (Backend Phase)
+## 📱 PWA Installation
 
-The frontend is complete. The backend phase will add:
+The app is fully installable as a native-like app:
 
-1. `prisma/schema.prisma` — Full schema with migrations
-2. `app/api/` — All REST route handlers (JWT auth, bcrypt, Prisma queries)
-3. `prisma/seed.ts` — Seed script with realistic data
-4. `lib/auth.ts` — JWT sign/verify utilities
-5. `lib/db.ts` — Prisma client singleton
+- **iOS Safari:** Share → Add to Home Screen
+- **Android Chrome:** Three-dot menu → Install App (or Add to Home Screen)
+- **Desktop Chrome/Edge:** Address bar install icon
+
+The bottom tab bar and safe-area insets activate automatically when running in standalone PWA mode.
+
+---
+
+## 🛣️ Roadmap
+
+- [ ] Push notifications for order status updates
+- [ ] Product image upload via Supabase Storage
+- [ ] Discount codes / promo system
+- [ ] Customer reviews & ratings
+- [ ] Admin analytics charts (revenue over time)
+- [ ] Multi-language support (i18n)
