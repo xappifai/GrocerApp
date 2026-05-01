@@ -1,0 +1,179 @@
+"use client";
+
+import { useState } from "react";
+import { Send, CheckCircle } from "lucide-react";
+import { contactService } from "@/services/contactService";
+import toast from "react-hot-toast";
+
+const SUBJECTS = [
+  "General Inquiry",
+  "Order Issue",
+  "Delivery Problem",
+  "Product Quality",
+  "Billing & Payment",
+  "Account Help",
+  "Feedback / Suggestion",
+  "Other",
+];
+
+export default function ContactForm() {
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    subject: SUBJECTS[0],
+    message: "",
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.name.trim() || !form.email.trim() || !form.message.trim()) {
+      toast.error("Please fill in all required fields.");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      await contactService.send(form);
+      setSubmitted(true);
+    } catch {
+      toast.error("Failed to send message. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (submitted) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 rounded-3xl border border-brand-100 bg-brand-50 px-8 py-16 text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-100">
+          <CheckCircle className="h-8 w-8 text-brand-600" />
+        </div>
+        <h3 className="font-display text-2xl font-bold text-gray-900">
+          Message sent!
+        </h3>
+        <p className="max-w-sm text-gray-500">
+          Thanks for reaching out, <strong>{form.name}</strong>. We&apos;ll get back to
+          you at <strong>{form.email}</strong> within 24 hours.
+        </p>
+        <button
+          onClick={() => {
+            setSubmitted(false);
+            setForm({ name: "", email: "", subject: SUBJECTS[0], message: "" });
+          }}
+          className="mt-2 rounded-xl bg-brand-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 transition-colors"
+        >
+          Send another message
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+      <div className="grid gap-5 sm:grid-cols-2">
+        {/* Name */}
+        <div>
+          <label htmlFor="name" className="mb-1.5 block text-sm font-medium text-gray-700">
+            Your name <span className="text-red-500">*</span>
+          </label>
+          <input
+            id="name"
+            name="name"
+            type="text"
+            autoComplete="name"
+            required
+            value={form.name}
+            onChange={handleChange}
+            placeholder="John Doe"
+            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+          />
+        </div>
+
+        {/* Email */}
+        <div>
+          <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-gray-700">
+            Email address <span className="text-red-500">*</span>
+          </label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            required
+            value={form.email}
+            onChange={handleChange}
+            placeholder="you@example.com"
+            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+          />
+        </div>
+      </div>
+
+      {/* Subject */}
+      <div>
+        <label htmlFor="subject" className="mb-1.5 block text-sm font-medium text-gray-700">
+          Subject
+        </label>
+        <select
+          id="subject"
+          name="subject"
+          value={form.subject}
+          onChange={handleChange}
+          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+        >
+          {SUBJECTS.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Message */}
+      <div>
+        <label htmlFor="message" className="mb-1.5 block text-sm font-medium text-gray-700">
+          Message <span className="text-red-500">*</span>
+        </label>
+        <textarea
+          id="message"
+          name="message"
+          required
+          rows={5}
+          value={form.message}
+          onChange={handleChange}
+          placeholder="Tell us how we can help…"
+          className="w-full resize-none rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+        />
+        <p className="mt-1 text-right text-xs text-gray-400">
+          {form.message.length} / 1000
+        </p>
+      </div>
+
+      <button
+        type="submit"
+        disabled={isSubmitting}
+        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-6 py-3 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60 transition-colors"
+      >
+        {isSubmitting ? (
+          <>
+            <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+            </svg>
+            Sending…
+          </>
+        ) : (
+          <>
+            <Send className="h-4 w-4" /> Send Message
+          </>
+        )}
+      </button>
+    </form>
+  );
+}
