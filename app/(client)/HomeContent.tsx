@@ -1,92 +1,202 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { ChevronLeft, ChevronRight, Package } from "lucide-react";
+import { memo, useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { ArrowRight, Package, Search, X } from "lucide-react";
 import ProductCard from "@/components/client/ProductCard";
-import { CategoryFilter, SearchBar } from "@/components/client/CategoryFilter";
 import { PageLoader, EmptyState } from "@/components/ui";
 import { productService } from "@/services/productService";
 import { debounce } from "@/lib/utils";
-import type { Product, Category } from "@/types";
+import type { Category, Product } from "@/types";
 
-const LIMIT = 8;
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
-interface HomeContentProps {
-  initialProducts:    Product[];
-  initialCategories:  Category[];
-  initialTotalPages:  number;
-  initialTotal:       number;
+export interface Section {
+  category: Category;
+  products: Product[];
+  total: number; // total products in DB for this category
 }
 
-// Category quick-links shown below the hero on mobile
-const CATEGORY_SHORTCUTS = [
-  { emoji: "🥛", label: "Dairy",    slug: "dairy"              },
-  { emoji: "🌾", label: "Grains",   slug: "rice-atta-grains"   },
-  { emoji: "🫘", label: "Daal",     slug: "daal-pulses"        },
-  { emoji: "🫙", label: "Oils",     slug: "oils-ghee"          },
-  { emoji: "🌶️", label: "Spices",  slug: "spices-masala"      },
-  { emoji: "🧴", label: "Sauces",   slug: "sauces-condiments"  },
-  { emoji: "🧃", label: "Drinks",   slug: "beverages"          },
-  { emoji: "🧹", label: "Cleaning", slug: "household-cleaning" },
-];
+interface HomeContentProps {
+  sections: Section[];
+}
 
-export default function HomeContent({
-  initialProducts,
-  initialCategories,
-  initialTotalPages,
-  initialTotal,
-}: HomeContentProps) {
-  const [products, setProducts]       = useState<Product[]>(initialProducts);
-  const [categories]                  = useState<Category[]>(initialCategories);
-  const [isLoading, setIsLoading]     = useState(false);
-  const [search, setSearch]           = useState("");
-  const [activeCategory, setActiveCategory] = useState("all");
-  const [page, setPage]               = useState(1);
-  const [totalPages, setTotalPages]   = useState(initialTotalPages);
-  const [total, setTotal]             = useState(initialTotal);
+// ---------------------------------------------------------------------------
+// Category emoji map (quick-look icons)
+// ---------------------------------------------------------------------------
+const CATEGORY_EMOJI: Record<string, string> = {
+  dairy:                "🥛",
+  "rice-atta-grains":   "🌾",
+  "daal-pulses":        "🫘",
+  "oils-ghee":          "🫙",
+  "spices-masala":      "🌶️",
+  "sauces-condiments":  "🧴",
+  beverages:            "🧃",
+  "household-cleaning": "🧹",
+  laundry:              "🧺",
+};
 
-  const fetchProducts = useCallback(
-    async (q: string, cat: string, p: number) => {
-      setIsLoading(true);
-      try {
-        const res = await productService.getAll({
-          search:   q || undefined,
-          category: cat !== "all" ? cat : undefined,
-          page:     p,
-          limit:    LIMIT,
-        });
-        setProducts(res.data);
-        setTotalPages(res.totalPages);
-        setTotal(res.total);
-      } catch {
-        // silent
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    []
-  );
-
-  const debouncedFetch = useCallback(
-    debounce((q: string, cat: string, p: number) => fetchProducts(q, cat, p), 350),
-    [fetchProducts]
-  );
-
-  useEffect(() => {
-    if (search === "" && activeCategory === "all" && page === 1) return;
-    debouncedFetch(search, activeCategory, page);
-  }, [search, activeCategory, page, debouncedFetch]);
-
-  const handleSearch = (q: string) => { setSearch(q); setPage(1); };
-  const handleCategory = (slug: string) => { setActiveCategory(slug); setPage(1); };
+// ---------------------------------------------------------------------------
+// CategorySection — memoised so it never re-renders due to search state changes
+// ---------------------------------------------------------------------------
+const CategorySection = memo(function CategorySection({
+  section,
+  priority,
+}: {
+  section: Section;
+  priority: boolean;
+}) {
+  const { category, products, total } = section;
+  const hasMore = total > products.length;
+  const emoji = CATEGORY_EMOJI[category.slug] ?? "🛒";
 
   return (
-    <div className="space-y-5 md:space-y-8">
+    <section aria-labelledby={`section-${category.slug}`}>
+      {/* Section header */}
+      <div className="mb-4 flex items-center justify-between">
+        <h2
+          id={`section-${category.slug}`}
+          className="flex items-center gap-2 font-display text-xl font-bold text-gray-900 md:text-2xl"
+        >
+          <span className="text-2xl leading-none">{emoji}</span>
+          {category.name}
+        </h2>
 
-      {/* ── Hero ─────────────────────────────────────────────────────────────
-           Mobile:  compact app-style banner (shorter, no emoji row)
-           Desktop: full two-column gradient card
-      ──────────────────────────────────────────────────────────────────────── */}
+        {hasMore && (
+          <Link
+            href={`/shop/${category.slug}`}
+            className="flex items-center gap-1 rounded-xl bg-brand-50 px-3 py-1.5 text-sm font-semibold text-brand-700 hover:bg-brand-100 transition-colors"
+          >
+            View all {total}
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        )}
+      </div>
+
+      {/* Mobile: horizontal scroll row */}
+      <div className="md:hidden">
+        <div className="-mx-4 px-4 overflow-x-auto pb-2">
+          <div className="flex gap-3" style={{ width: "max-content" }}>
+            {products.map((product, index) => (
+              <div key={product.id} className="w-44 flex-shrink-0">
+                <ProductCard product={product} priority={priority && index < 2} />
+              </div>
+            ))}
+            {hasMore && (
+              <Link
+                href={`/shop/${category.slug}`}
+                className="flex w-32 flex-shrink-0 flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-brand-200 bg-brand-50 text-brand-700 hover:border-brand-400 hover:bg-brand-100 transition-colors"
+              >
+                <ArrowRight className="h-6 w-6" />
+                <span className="text-xs font-semibold text-center px-2">
+                  {total - products.length} more
+                </span>
+              </Link>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop: 4-column grid */}
+      <div className="hidden md:grid md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-4">
+        {products.map((product, index) => (
+          <ProductCard key={product.id} product={product} priority={priority && index < 4} />
+        ))}
+      </div>
+    </section>
+  );
+});
+
+// ---------------------------------------------------------------------------
+// SearchResults — shown only when search is active
+// ---------------------------------------------------------------------------
+function SearchResults({
+  query,
+  results,
+  isLoading,
+  onClear,
+}: {
+  query: string;
+  results: Product[];
+  isLoading: boolean;
+  onClear: () => void;
+}) {
+  if (isLoading) return <PageLoader />;
+
+  if (results.length === 0) {
+    return (
+      <EmptyState
+        icon={<Package className="h-7 w-7" />}
+        title="No products found"
+        description={`No results for "${query}". Try a different search term.`}
+        action={
+          <button
+            onClick={onClear}
+            className="rounded-xl bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+          >
+            Clear search
+          </button>
+        }
+      />
+    );
+  }
+
+  return (
+    <div>
+      <p className="mb-3 text-sm text-gray-500">
+        <span className="font-medium text-gray-900">{results.length}</span> result
+        {results.length !== 1 ? "s" : ""} for &ldquo;{query}&rdquo;
+      </p>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 md:gap-5">
+        {results.map((product, index) => (
+          <ProductCard key={product.id} product={product} priority={index < 4} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// HomeContent
+// ---------------------------------------------------------------------------
+export default function HomeContent({ sections }: HomeContentProps) {
+  const [search, setSearch]           = useState("");
+  const [searchResults, setResults]   = useState<Product[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+
+  const doSearch = useCallback(async (q: string) => {
+    if (!q.trim()) return;
+    setIsSearching(true);
+    try {
+      const res = await productService.getAll({ search: q, limit: 48 });
+      setResults(res.data);
+    } catch {
+      // silent
+    } finally {
+      setIsSearching(false);
+    }
+  }, []);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const debouncedSearch = useCallback(debounce(doSearch, 400), [doSearch]);
+
+  useEffect(() => {
+    if (search.trim()) {
+      debouncedSearch(search);
+    } else {
+      setResults([]);
+    }
+  }, [search, debouncedSearch]);
+
+  const clearSearch = () => setSearch("");
+  const isSearchActive = search.trim().length > 0;
+
+  return (
+    <div className="space-y-10 md:space-y-14">
+
+      {/* ── Hero ─────────────────────────────────────────────────────────── */}
       <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-brand-700 to-brand-900 text-white md:rounded-3xl">
         <div className="grid xl:grid-cols-2 xl:items-center">
 
@@ -95,11 +205,7 @@ export default function HomeContent({
             <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-brand-200">
               🌿 Fresh &amp; Organic
             </span>
-            {/* Shorter headline on mobile */}
-            <h1 className="mt-3 font-display font-bold leading-tight
-                           text-3xl
-                           md:text-5xl
-                           xl:text-6xl">
+            <h1 className="mt-3 font-display font-bold leading-tight text-3xl md:text-5xl xl:text-6xl">
               Your groceries,{" "}
               <span className="text-brand-200">sorted.</span>
             </h1>
@@ -124,161 +230,86 @@ export default function HomeContent({
             </div>
           </div>
 
-          {/* Category grid — xl only */}
+          {/* Category quick-links — xl sidebar */}
           <div className="hidden xl:flex xl:items-center xl:justify-center xl:pr-10 xl:py-10">
             <div className="grid grid-cols-4 gap-3">
-              {CATEGORY_SHORTCUTS.map(({ emoji, label, slug }) => (
-                <button
-                  key={label}
-                  onClick={() => handleCategory(activeCategory === slug ? "all" : slug)}
+              {sections.slice(0, 8).map(({ category }) => (
+                <Link
+                  key={category.id}
+                  href={`/shop/${category.slug}`}
                   className="flex flex-col items-center gap-1.5 rounded-2xl bg-white/10 px-4 py-4 backdrop-blur-sm hover:bg-white/20 transition-colors"
                 >
-                  <span className="text-2xl">{emoji}</span>
-                  <span className="text-xs font-medium text-brand-100">{label}</span>
-                </button>
+                  <span className="text-2xl">{CATEGORY_EMOJI[category.slug] ?? "🛒"}</span>
+                  <span className="text-xs font-medium text-brand-100">{category.name}</span>
+                </Link>
               ))}
             </div>
           </div>
         </div>
       </div>
 
-      {/* ── Category shortcut grid — mobile only ─────────────────────────── */}
-      <div className="md:hidden">
+      {/* ── Category shortcut grid — mobile only ────────────────────────── */}
+      <div className="md:hidden -mt-4">
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
           Browse by category
         </h2>
         <div className="grid grid-cols-4 gap-2.5">
-          {CATEGORY_SHORTCUTS.map(({ emoji, label, slug }) => {
-            const active = activeCategory === slug;
-            return (
-              <button
-                key={label}
-                onClick={() => handleCategory(active ? "all" : slug)}
-                className={`flex flex-col items-center gap-1.5 rounded-2xl border py-3 transition-all ${
-                  active
-                    ? "border-brand-200 bg-brand-50"
-                    : "border-gray-100 bg-white hover:border-brand-100 hover:bg-brand-50/50"
-                }`}
-              >
-                <span className="text-2xl leading-none">{emoji}</span>
-                <span className={`text-[10px] font-semibold ${active ? "text-brand-700" : "text-gray-600"}`}>
-                  {label}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── Search + category pills ───────────────────────────────────────── */}
-      <div className="space-y-3">
-        <SearchBar value={search} onChange={handleSearch} />
-        {/* Category pill row — hidden on mobile (grid above handles it) */}
-        <div className="hidden md:block">
-          <CategoryFilter
-            categories={categories}
-            selected={activeCategory}
-            onChange={handleCategory}
-          />
-        </div>
-      </div>
-
-      {/* Results count */}
-      {!isLoading && (
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm text-gray-500">
-            {total > 0 ? (
-              <>
-                Showing{" "}
-                <span className="font-medium text-gray-900">{products.length}</span> of{" "}
-                <span className="font-medium text-gray-900">{total}</span> products
-                {activeCategory !== "all" && (
-                  <button
-                    onClick={() => handleCategory("all")}
-                    className="ml-2 text-xs text-brand-600 hover:underline"
-                  >
-                    Clear
-                  </button>
-                )}
-              </>
-            ) : (
-              "No products found"
-            )}
-          </h2>
-        </div>
-      )}
-
-      {/* ── Product grid ──────────────────────────────────────────────────── */}
-      {isLoading ? (
-        <PageLoader />
-      ) : products.length === 0 ? (
-        <EmptyState
-          icon={<Package className="h-7 w-7" />}
-          title="No products found"
-          description={
-            search
-              ? `No results for "${search}". Try a different search term.`
-              : "No products available in this category yet."
-          }
-          action={
-            <button
-              onClick={() => { handleSearch(""); handleCategory("all"); }}
-              className="rounded-xl bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+          {sections.slice(0, 8).map(({ category }) => (
+            <Link
+              key={category.id}
+              href={`/shop/${category.slug}`}
+              className="flex flex-col items-center gap-1.5 rounded-2xl border border-gray-100 bg-white py-3 hover:border-brand-100 hover:bg-brand-50/50 transition-all"
             >
-              Clear filters
-            </button>
-          }
+              <span className="text-2xl leading-none">
+                {CATEGORY_EMOJI[category.slug] ?? "🛒"}
+              </span>
+              <span className="text-[10px] font-semibold text-gray-600">
+                {category.name.split(" ")[0]}
+              </span>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Search bar ──────────────────────────────────────────────────── */}
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search across all products…"
+          className="w-full rounded-xl border border-gray-200 bg-white pl-10 pr-10 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 transition-colors"
+        />
+        {search && (
+          <button
+            onClick={clearSearch}
+            aria-label="Clear search"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
+      {/* ── Content: search results OR category sections ─────────────────── */}
+      {isSearchActive ? (
+        <SearchResults
+          query={search}
+          results={searchResults}
+          isLoading={isSearching}
+          onClear={clearSearch}
         />
       ) : (
-        <>
-          {/* 2-col on mobile, scales up to 5-col on xl */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 md:gap-5">
-            {products.map((product, index) => (
-              <div key={product.id} className="animate-fade-in">
-                <ProductCard product={product} priority={index < 4} />
-              </div>
-            ))}
-          </div>
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 pt-4">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-                aria-label="Previous page"
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setPage(p)}
-                  aria-label={`Go to page ${p}`}
-                  aria-current={p === page ? "page" : undefined}
-                  className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm font-medium transition-colors ${
-                    p === page
-                      ? "bg-brand-600 text-white"
-                      : "border border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
-                  }`}
-                >
-                  {p}
-                </button>
-              ))}
-
-              <button
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                aria-label="Next page"
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
-          )}
-        </>
+        <div className="space-y-12 md:space-y-16">
+          {sections.map((section, idx) => (
+            <CategorySection
+              key={section.category.id}
+              section={section}
+              priority={idx === 0}
+            />
+          ))}
+        </div>
       )}
     </div>
   );
