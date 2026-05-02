@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, Star, Package } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createStaticClient } from "@/lib/supabase/server";
 import { mapProduct } from "@/lib/supabase/mappers";
 import { imageUrl } from "@/lib/utils";
 import { APP_NAME } from "@/lib/constants";
@@ -13,7 +13,8 @@ export const revalidate = 60;
 
 // Pre-render all product pages at build time; new ones rendered on first request.
 export async function generateStaticParams() {
-  const supabase = createClient();
+  // Use cookie-free client — generateStaticParams runs outside a request scope.
+  const supabase = createStaticClient();
   const { data } = await supabase.from("products").select("id");
   return (data ?? []).map((p) => ({ id: p.id as string }));
 }

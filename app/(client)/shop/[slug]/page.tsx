@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createStaticClient } from "@/lib/supabase/server";
 import { mapProduct, mapCategory } from "@/lib/supabase/mappers";
 import { APP_NAME } from "@/lib/constants";
 import CategoryContent from "./CategoryContent";
@@ -10,8 +10,8 @@ export const revalidate = 60;
 // Pre-render all known category pages at build time.
 // New slugs added after deployment are rendered on-demand and then cached.
 export async function generateStaticParams() {
-  const { createClient } = await import("@/lib/supabase/server");
-  const supabase = createClient();
+  // Use cookie-free client — generateStaticParams runs outside a request scope.
+  const supabase = createStaticClient();
   const { data } = await supabase.from("categories").select("slug");
   return (data ?? []).map((c) => ({ slug: c.slug as string }));
 }
