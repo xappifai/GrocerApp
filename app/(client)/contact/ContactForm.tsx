@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Send, CheckCircle } from "lucide-react";
+import { z } from "zod";
 import { contactService } from "@/services/contactService";
 import toast from "react-hot-toast";
 
@@ -16,15 +17,31 @@ const SUBJECTS = [
   "Other",
 ];
 
+const NAME_MAX    = 100;
+const EMAIL_MAX   = 254;  // RFC 5321 limit
+const MESSAGE_MAX = 1000;
+
+const contactSchema = z.object({
+  name:    z.string().min(1, "Name is required").max(NAME_MAX, `Name must be ${NAME_MAX} characters or fewer`),
+  email:   z.string().email("Enter a valid email address").max(EMAIL_MAX),
+  subject: z.string(),
+  message: z.string().min(1, "Message is required").max(MESSAGE_MAX, `Message must be ${MESSAGE_MAX} characters or fewer`),
+});
+
+const RATE_LIMIT_MS = 60_000; // 1 submission per 60 seconds per browser session
+
 export default function ContactForm() {
   const [form, setForm] = useState({
     name: "",
     email: "",
     subject: SUBJECTS[0],
     message: "",
+    // honeypot — must stay empty; bots fill it automatically
+    website: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const lastSubmitAt = useRef<number>(0);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -34,13 +51,29 @@ export default function ContactForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim() || !form.email.trim() || !form.message.trim()) {
-      toast.error("Please fill in all required fields.");
+
+    // Honeypot check — real users never fill the hidden "website" field
+    if (form.website) return;
+
+    // Client-side rate limit
+    const now = Date.now();
+    if (now - lastSubmitAt.current < RATE_LIMIT_MS) {
+      const remaining = Math.ceil((RATE_LIMIT_MS - (now - lastSubmitAt.current)) / 1000);
+      toast.error(`Please wait ${remaining}s before sending another message.`);
       return;
     }
+
+    const result = contactSchema.safeParse(form);
+    if (!result.success) {
+      const firstError = result.error.errors[0]?.message ?? "Please fill in all required fields.";
+      toast.error(firstError);
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      await contactService.send(form);
+      await contactService.send(result.data);
+      lastSubmitAt.current = Date.now();
       setSubmitted(true);
     } catch {
       toast.error("Failed to send message. Please try again.");
@@ -65,7 +98,7 @@ export default function ContactForm() {
         <button
           onClick={() => {
             setSubmitted(false);
-            setForm({ name: "", email: "", subject: SUBJECTS[0], message: "" });
+            setForm({ name: "", email: "", subject: SUBJECTS[0], message: "", website: "" });
           }}
           className="mt-2 rounded-xl bg-brand-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 transition-colors"
         >
@@ -77,6 +110,19 @@ export default function ContactForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+      {/* Honeypot — invisible to real users; bots autofill it and get silently blocked */}
+      <div aria-hidden="true" style={{ position: "absolute", left: "-9999px", top: "-9999px" }}>
+        <label htmlFor="website">Website</label>
+        <input
+          id="website"
+          name="website"
+          type="text"
+          tabIndex={-1}
+          autoComplete="off"
+          value={form.website}
+          onChange={handleChange}
+        />
+      </div>
       <div className="grid gap-5 sm:grid-cols-2">
         {/* Name */}
         <div>
@@ -89,6 +135,7 @@ export default function ContactForm() {
             type="text"
             autoComplete="name"
             required
+            maxLength={NAME_MAX}
             value={form.name}
             onChange={handleChange}
             placeholder="John Doe"
@@ -107,6 +154,7 @@ export default function ContactForm() {
             type="email"
             autoComplete="email"
             required
+            maxLength={EMAIL_MAX}
             value={form.email}
             onChange={handleChange}
             placeholder="you@example.com"
@@ -145,13 +193,14 @@ export default function ContactForm() {
           name="message"
           required
           rows={5}
+          maxLength={MESSAGE_MAX}
           value={form.message}
           onChange={handleChange}
           placeholder="Tell us how we can help…"
           className="w-full resize-none rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
         />
-        <p className="mt-1 text-right text-xs text-gray-400">
-          {form.message.length} / 1000
+        <p className={`mt-1 text-right text-xs ${form.message.length >= MESSAGE_MAX ? "text-red-500 font-medium" : "text-gray-400"}`}>
+          {form.message.length} / {MESSAGE_MAX}
         </p>
       </div>
 

@@ -8,11 +8,15 @@ interface AuthStore {
   isAuthenticated: boolean;
   isInitialized: boolean;
 
-  initialize: () => Promise<void>;
-  login:      (credentials: LoginCredentials) => Promise<void>;
-  signup:     (credentials: SignupCredentials) => Promise<void>;
-  logout:     () => Promise<void>;
+  initialize:        () => Promise<void>;
+  cleanupSubscription: () => void;
+  login:             (credentials: LoginCredentials) => Promise<void>;
+  signup:            (credentials: SignupCredentials) => Promise<void>;
+  logout:            () => Promise<void>;
 }
+
+// Module-level ref so the subscription survives re-renders but is only created once
+let _authSubscription: { unsubscribe: () => void } | null = null;
 
 export const useAuthStore = create<AuthStore>((set) => ({
   user:            null,
@@ -20,7 +24,15 @@ export const useAuthStore = create<AuthStore>((set) => ({
   isAuthenticated: false,
   isInitialized:   false,
 
+  cleanupSubscription: () => {
+    _authSubscription?.unsubscribe();
+    _authSubscription = null;
+  },
+
   initialize: async () => {
+    // Guard: never register more than one listener
+    if (_authSubscription) return;
+
     const supabase = createClient();
     const { data: { user: authUser } } = await supabase.auth.getUser();
 
@@ -47,7 +59,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
     }
 
     // Keep the store in sync with Supabase auth state (tab switches, token expiry, etc.)
-    supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
         const { data: profile } = await supabase
           .from("profiles")
@@ -70,6 +82,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
         set({ user: null, isAuthenticated: false, isInitialized: true });
       }
     });
+
+    _authSubscription = subscription;
   },
 
   login: async (credentials) => {
@@ -135,6 +149,11 @@ export const useAuthStore = create<AuthStore>((set) => ({
   },
 
   logout: async () => {
+    // Tear down the listener before signing out so the SIGNED_OUT event
+    // doesn't race with the store reset below.
+    _authSubscription?.unsubscribe();
+    _authSubscription = null;
+
     const supabase = createClient();
     await supabase.auth.signOut();
     set({ user: null, isAuthenticated: false });

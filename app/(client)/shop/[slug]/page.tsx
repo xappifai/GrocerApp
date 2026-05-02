@@ -7,6 +7,15 @@ import CategoryContent from "./CategoryContent";
 
 export const revalidate = 60;
 
+// Pre-render all known category pages at build time.
+// New slugs added after deployment are rendered on-demand and then cached.
+export async function generateStaticParams() {
+  const { createClient } = await import("@/lib/supabase/server");
+  const supabase = createClient();
+  const { data } = await supabase.from("categories").select("slug");
+  return (data ?? []).map((c) => ({ slug: c.slug as string }));
+}
+
 interface Props {
   params: { slug: string };
 }
@@ -45,23 +54,25 @@ export default async function CategoryPage({ params }: Props) {
   const supabase = createClient();
 
   // Fetch category by slug
-  const { data: catRow } = await supabase
+  const { data: catRow, error: catError } = await supabase
     .from("categories")
     .select("*")
     .eq("slug", params.slug)
     .single();
 
-  if (!catRow) notFound();
+  if (catError || !catRow) notFound();
 
   const category = mapCategory(catRow as Record<string, unknown>);
 
   // Fetch first page of products + total count
-  const { data: productRows, count } = await supabase
+  const { data: productRows, count, error: prodError } = await supabase
     .from("products")
     .select("*, categories(*)", { count: "exact" })
     .eq("category_id", category.id)
     .order("created_at", { ascending: false })
     .limit(PAGE_LIMIT);
+
+  if (prodError) throw new Error(`Failed to load products: ${prodError.message}`);
 
   const products = (productRows ?? []).map((r) =>
     mapProduct(r as Record<string, unknown>)

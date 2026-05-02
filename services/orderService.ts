@@ -15,88 +15,49 @@ export const orderService = {
   async create(input: CreateOrderInput): Promise<Order> {
     const supabase = createClient();
 
-    // Get current user
+    // Verify the user is logged in
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new Error("You must be logged in to place an order.");
 
-    // Fetch profile for user name/email
+    // Fetch display name for the order record
     const { data: profile } = await supabase
       .from("profiles")
       .select("name")
       .eq("id", user.id)
       .single();
 
-    // Fetch current prices to calculate total
-    const productIds = input.items.map((i) => i.productId);
-    const { data: products, error: prodError } = await supabase
-      .from("products")
-      .select("id, price, stock")
-      .in("id", productIds);
-    if (prodError) throw new Error(prodError.message);
+    // ---------------------------------------------------------------------------
+    // Delegate the entire order to the place_order RPC which runs inside a single
+    // Postgres transaction:
+    //   - locks product rows (prevents concurrent over-selling)
+    //   - validates stock per item
+    //   - computes total price server-side (price tamper-proof)
+    //   - inserts order + order_items atomically
+    //   - decrements product.stock for every item
+    // Any failure rolls back everything — no dangling orders.
+    // ---------------------------------------------------------------------------
+    const { data: orderId, error: rpcError } = await supabase.rpc("place_order", {
+      p_user_id:          user.id,
+      p_user_name:        profile?.name || (user.user_metadata?.name as string) || "",
+      p_user_email:       user.email ?? "",
+      p_delivery_address: input.deliveryAddress,
+      p_delivery_city:    input.deliveryCity,
+      p_delivery_phone:   input.deliveryPhone,
+      p_latitude:         input.deliveryLatitude  ?? null,
+      p_longitude:        input.deliveryLongitude ?? null,
+      p_items: input.items.map((i) => ({
+        product_id: i.productId,
+        quantity:   i.quantity,
+      })),
+    });
 
-    const priceMap = new Map(
-      (products ?? []).map((p) => [p.id as string, { price: Number(p.price), stock: p.stock as number }])
-    );
+    if (rpcError) throw new Error(rpcError.message);
 
-    // Validate stock
-    for (const item of input.items) {
-      const p = priceMap.get(item.productId);
-      if (!p) throw new Error(`Product ${item.productId} not found.`);
-      if (p.stock < item.quantity) throw new Error(`Insufficient stock for one or more items.`);
-    }
-
-    const totalPrice = input.items.reduce((sum, item) => {
-      return sum + (priceMap.get(item.productId)?.price ?? 0) * item.quantity;
-    }, 0);
-
-    // Insert order
-    const { data: order, error: orderError } = await supabase
-      .from("orders")
-      .insert({
-        user_id:          user.id,
-        user_name:        profile?.name || user.user_metadata?.name || "",
-        user_email:       user.email!,
-        status:           "PENDING",
-        total_price:      totalPrice,
-        delivery_address: input.deliveryAddress,
-        delivery_city:    input.deliveryCity,
-        delivery_phone:   input.deliveryPhone,
-        latitude:         input.deliveryLatitude  ?? null,
-        longitude:        input.deliveryLongitude ?? null,
-      })
-      .select("id")
-      .single();
-    if (orderError) throw new Error(orderError.message);
-
-    // Insert order items (snapshot of product data)
-    const { data: productDetails } = await supabase
-      .from("products")
-      .select("id, name, image")
-      .in("id", productIds);
-
-    const nameMap = new Map(
-      (productDetails ?? []).map((p) => [p.id as string, { name: p.name as string, image: (p.image as string) || "" }])
-    );
-
-    const orderItems = input.items.map((item) => ({
-      order_id:      order.id,
-      product_id:    item.productId,
-      product_name:  nameMap.get(item.productId)?.name  ?? "",
-      product_image: nameMap.get(item.productId)?.image ?? "",
-      quantity:      item.quantity,
-      price:         priceMap.get(item.productId)?.price ?? 0,
-    }));
-
-    const { error: itemsError } = await supabase
-      .from("order_items")
-      .insert(orderItems);
-    if (itemsError) throw new Error(itemsError.message);
-
-    // Return the complete order
+    // Fetch the full order to return to the caller
     const { data: full, error: fetchError } = await supabase
       .from("orders")
       .select(ORDER_SELECT)
-      .eq("id", order.id)
+      .eq("id", orderId as string)
       .single();
     if (fetchError) throw new Error(fetchError.message);
 
@@ -118,12 +79,13 @@ export const orderService = {
     return (data ?? []).map((r) => mapOrder(r as Record<string, unknown>));
   },
 
-  async getAllOrders(): Promise<Order[]> {
+  async getAllOrders(limit = 500): Promise<Order[]> {
     const supabase = createClient();
     const { data, error } = await supabase
       .from("orders")
       .select(ORDER_SELECT)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .limit(limit); // safety cap — default 500
 
     if (error) throw new Error(error.message);
     return (data ?? []).map((r) => mapOrder(r as Record<string, unknown>));

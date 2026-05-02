@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { mapProduct } from "@/lib/supabase/mappers";
+import { mapProduct, mapCategory } from "@/lib/supabase/mappers";
 import EditProductForm from "./EditProductForm";
 
 interface Props {
@@ -22,15 +22,16 @@ export default async function EditProductPage({ params }: Props) {
     .single();
   if (profile?.role !== "ADMIN") redirect("/");
 
-  const { data, error } = await supabase
-    .from("products")
-    .select("*, categories(*)")
-    .eq("id", params.id)
-    .single();
+  // Fetch product + categories in parallel
+  const [{ data, error }, { data: catRows }] = await Promise.all([
+    supabase.from("products").select("*, categories(*)").eq("id", params.id).single(),
+    supabase.from("categories").select("*").order("name"),
+  ]);
 
   if (error || !data) notFound();
 
-  const product = mapProduct(data as Record<string, unknown>);
+  const product    = mapProduct(data as Record<string, unknown>);
+  const categories = (catRows ?? []).map((r) => mapCategory(r as Record<string, unknown>));
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -50,7 +51,7 @@ export default async function EditProductPage({ params }: Props) {
       </div>
 
       <div className="bg-white border border-neutral-200 rounded-2xl p-8 shadow-card">
-        <EditProductForm product={product} />
+        <EditProductForm product={product} categories={categories} />
       </div>
     </div>
   );

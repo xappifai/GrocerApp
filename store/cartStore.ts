@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { createClient } from "@/lib/supabase/client";
 import type { CartItem, Product } from "@/types";
 
 interface CartStore {
@@ -13,6 +14,13 @@ interface CartStore {
   openCart: () => void;
   closeCart: () => void;
   toggleCart: () => void;
+  /**
+   * Re-fetches live price/stock for every item currently in the cart.
+   * - Items whose product no longer exists are silently removed.
+   * - Items whose quantity exceeds current stock are capped.
+   * Call this when the cart drawer opens or the checkout page mounts.
+   */
+  refreshCart: () => Promise<void>;
 
   // Computed
   totalItems: () => number;
@@ -66,6 +74,58 @@ export const useCartStore = create<CartStore>()(
       openCart: () => set({ isOpen: true }),
       closeCart: () => set({ isOpen: false }),
       toggleCart: () => set((s) => ({ isOpen: !s.isOpen })),
+
+      refreshCart: async () => {
+        const current = get().items;
+        if (current.length === 0) return;
+
+        const supabase = createClient();
+        const ids = current.map((i) => i.product.id);
+
+        const { data: fresh } = await supabase
+          .from("products")
+          .select("id, name, description, price, image, stock, category_id, created_at, updated_at, categories(id, name, slug, image)")
+          .in("id", ids);
+
+        if (!fresh) return; // keep stale rather than silently wipe on network error
+
+        const freshMap = new Map(fresh.map((p) => [p.id, p]));
+
+        const updated: CartItem[] = [];
+        for (const item of current) {
+          const liveData = freshMap.get(item.product.id);
+          if (!liveData) continue; // product deleted — drop from cart
+
+          type CategoryRow = { id: string; name: string; slug: string; image?: string | null } | null;
+          // Supabase returns the joined row as an object (not array) for FK relations
+          const cat = (liveData.categories as unknown as CategoryRow);
+          const liveProduct: Product = {
+            id:          liveData.id,
+            name:        liveData.name,
+            description: liveData.description ?? "",
+            price:       Number(liveData.price),
+            image:       liveData.image ?? "",
+            stock:       liveData.stock,
+            categoryId:  liveData.category_id ?? "",
+            category: {
+              id:    cat?.id   ?? "",
+              name:  cat?.name ?? "",
+              slug:  cat?.slug ?? "",
+              image: cat?.image ?? undefined,
+            },
+            createdAt: liveData.created_at,
+            updatedAt: liveData.updated_at,
+          };
+
+          // Cap quantity to current live stock
+          const safeQty = Math.min(item.quantity, liveData.stock);
+          if (safeQty > 0) {
+            updated.push({ product: liveProduct, quantity: safeQty });
+          }
+        }
+
+        set({ items: updated });
+      },
 
       totalItems: () => get().items.reduce((sum, i) => sum + i.quantity, 0),
       totalPrice: () =>

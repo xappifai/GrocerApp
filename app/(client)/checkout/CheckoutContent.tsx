@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -47,6 +47,10 @@ export default function CheckoutContent({ savedProfile }: Props) {
   const { user, isAuthenticated }         = useAuthStore();
   const [isPlacing, setIsPlacing]         = useState(false);
   const [isLocating, setIsLocating]       = useState(false);
+  // Idempotency guard — one successful submission per form mount.
+  // Generated once; ensures a timed-out request that did succeed can't
+  // create a second order if the user retries.
+  const idempotencyKey = useRef(crypto.randomUUID());
   const [latitude,  setLatitude]          = useState<number | null>(
     savedProfile?.latitude  ?? null
   );
@@ -98,9 +102,12 @@ export default function CheckoutContent({ savedProfile }: Props) {
   };
 
   const onSubmit = async (data: FormData) => {
+    // Double-submission guard: prevent a second request while one is in-flight
+    if (isPlacing) return;
     setIsPlacing(true);
     try {
       await orderService.create({
+        idempotencyKey:    idempotencyKey.current,
         items:             items.map((i) => ({ productId: i.product.id, quantity: i.quantity })),
         deliveryAddress:   data.address,
         deliveryCity:      data.city,
@@ -110,10 +117,13 @@ export default function CheckoutContent({ savedProfile }: Props) {
       });
       clearCart();
       toast.success("Order placed successfully! 🎉");
+      // Keep isPlacing=true so the button stays disabled while we navigate away.
+      // The component unmounts, so there's no memory-leak concern.
       router.push("/orders");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to place order. Please try again.");
-    } finally {
+      // Rotate the key so a legitimate retry won't be blocked
+      idempotencyKey.current = crypto.randomUUID();
       setIsPlacing(false);
     }
   };

@@ -19,10 +19,6 @@ export interface UserProfile {
   longitude: number | null;
 }
 
-export interface AuthTokens {
-  accessToken: string;
-}
-
 export interface LoginCredentials {
   email: string;
   password: string;
@@ -32,13 +28,6 @@ export interface SignupCredentials {
   name: string;
   email: string;
   password: string;
-}
-
-export interface AuthState {
-  user: User | null;
-  token: string | null;
-  isLoading: boolean;
-  isAuthenticated: boolean;
 }
 
 // ─── Category ────────────────────────────────────────────────────────────────
@@ -85,7 +74,7 @@ export interface CartItem {
 
 // ─── Order ───────────────────────────────────────────────────────────────────
 
-export type OrderStatus = "PENDING" | "PROCESSING" | "DELIVERED";
+export type OrderStatus = "PENDING" | "PROCESSING" | "DELIVERED" | "CANCELLED";
 
 export interface OrderItem {
   id: string;
@@ -112,6 +101,8 @@ export interface Order {
 }
 
 export interface CreateOrderInput {
+  /** Client-generated UUID passed to the DB RPC to prevent duplicate orders on network retry */
+  idempotencyKey?: string;
   items: { productId: string; quantity: number }[];
   deliveryAddress: string;
   deliveryCity: string;

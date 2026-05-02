@@ -25,10 +25,13 @@ export default async function AdminOrdersPage() {
     .single();
   if (profile?.role !== "ADMIN") redirect("/");
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("orders")
     .select(ORDER_SELECT)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(500); // safety cap — paginate in AdminOrdersContent if needed
+
+  if (error) throw new Error(`Failed to load orders: ${error.message}`);
 
   const orders = (data ?? []).map((r) => mapOrder(r as Record<string, unknown>));
 

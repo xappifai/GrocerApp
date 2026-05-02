@@ -1,7 +1,10 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { mapProduct } from "@/lib/supabase/mappers";
+import { mapProduct, mapCategory } from "@/lib/supabase/mappers";
 import AdminProductsContent from "./AdminProductsContent";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Products | Admin" };
 
 export default async function AdminProductsPage() {
   const supabase = createClient();
@@ -16,12 +19,18 @@ export default async function AdminProductsPage() {
     .single();
   if (profile?.role !== "ADMIN") redirect("/");
 
-  const { data } = await supabase
-    .from("products")
-    .select("*, categories(*)")
-    .order("created_at", { ascending: false });
+  // Fetch categories (alphabetical) and products in parallel
+  const [{ data: catRows }, { data: productRows }] = await Promise.all([
+    supabase.from("categories").select("*").order("name"),
+    supabase
+      .from("products")
+      .select("*, categories(*)")
+      .order("name")           // alphabetical within each category section
+      .limit(500),
+  ]);
 
-  const products = (data ?? []).map((r) => mapProduct(r as Record<string, unknown>));
+  const categories = (catRows ?? []).map((r) => mapCategory(r as Record<string, unknown>));
+  const products   = (productRows ?? []).map((r) => mapProduct(r as Record<string, unknown>));
 
-  return <AdminProductsContent initialProducts={products} />;
+  return <AdminProductsContent initialProducts={products} categories={categories} />;
 }

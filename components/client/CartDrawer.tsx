@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { X, Minus, Plus, ShoppingBag, Trash2, ArrowRight } from "lucide-react";
@@ -7,8 +8,15 @@ import { useCartStore } from "@/store/cartStore";
 import { formatCurrency, imageUrl } from "@/lib/utils";
 
 export default function CartDrawer() {
-  const { items, isOpen, closeCart, updateQuantity, removeItem, totalPrice, totalItems } =
+  const { items, isOpen, closeCart, updateQuantity, removeItem, totalPrice, totalItems, refreshCart } =
     useCartStore();
+
+  // Refresh price/stock data every time the drawer opens
+  useEffect(() => {
+    if (isOpen) {
+      refreshCart();
+    }
+  }, [isOpen, refreshCart]);
 
   const count = totalItems();
   const price = totalPrice();
@@ -18,8 +26,12 @@ export default function CartDrawer() {
       {/* Backdrop */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm animate-fade-in"
+          role="button"
+          tabIndex={0}
+          aria-label="Close cart"
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm animate-fade-in cursor-default"
           onClick={closeCart}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " " || e.key === "Escape") closeCart(); }}
         />
       )}
 

@@ -13,6 +13,20 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: "#16a34a",
     categories: ["shopping", "food"],
     icons: [
+      // Raster icons — required for iOS Safari PWA install + Android launcher
+      {
+        src: "/icons/icon-192.png",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "/icons/icon-512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "any",
+      },
+      // SVG vector icons — used by Chrome/Edge on desktop & modern Android
       {
         src: "/icons/icon.svg",
         sizes: "any",

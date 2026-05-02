@@ -18,6 +18,11 @@ const plusJakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
+  // Resolves relative OG / Twitter image URLs in generateMetadata() across all routes.
+  // Falls back to localhost in development; set NEXT_PUBLIC_APP_URL in production.
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
+  ),
   title: { default: APP_NAME, template: `%s | ${APP_NAME}` },
   description: APP_DESCRIPTION,
   // PWA meta

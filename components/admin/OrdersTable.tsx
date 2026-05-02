@@ -23,13 +23,13 @@ export default function OrdersTable({ orders, onStatusChange, isUpdating }: Orde
           <table className="w-full text-left text-sm">
             <thead className="border-b border-gray-100 bg-gray-50">
               <tr>
-                <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-500">Order ID</th>
-                <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-500">Customer</th>
-                <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-500">Items</th>
-                <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-500">Total</th>
-                <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-500">Status</th>
-                <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-500">Date</th>
-                <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-500">Actions</th>
+                <th scope="col" className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-500">Order ID</th>
+                <th scope="col" className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-500">Customer</th>
+                <th scope="col" className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-500">Items</th>
+                <th scope="col" className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-500">Total</th>
+                <th scope="col" className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-500">Status</th>
+                <th scope="col" className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-500">Date</th>
+                <th scope="col" className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-500">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -67,9 +67,9 @@ export default function OrdersTable({ orders, onStatusChange, isUpdating }: Orde
                       <button
                         onClick={() => setViewOrder(order)}
                         className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
-                        title="View details"
+                        aria-label={`View details for order #${order.id.slice(-6).toUpperCase()}`}
                       >
-                        <Eye className="h-4 w-4" />
+                        <Eye className="h-4 w-4" aria-hidden="true" />
                       </button>
 
                       {/* Status dropdown */}
@@ -80,6 +80,7 @@ export default function OrdersTable({ orders, onStatusChange, isUpdating }: Orde
                             onStatusChange(order.id, e.target.value as OrderStatus)
                           }
                           disabled={isUpdating === order.id}
+                          aria-label={`Change status for order #${order.id.slice(-6).toUpperCase()}`}
                           className="cursor-pointer appearance-none rounded-lg border border-gray-200 bg-white px-2 py-1 pr-6 text-xs font-medium text-gray-700 focus:border-brand-400 focus:outline-none disabled:opacity-50"
                         >
                           {ORDER_STATUSES.map((s) => (

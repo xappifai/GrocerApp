@@ -8,9 +8,8 @@ import Image from "next/image";
 import { ImageIcon } from "lucide-react";
 import Input, { Textarea, Select } from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
-import { productService } from "@/services/productService";
 import { imageUrl } from "@/lib/utils";
-import type { CreateProductInput, SelectOption } from "@/types";
+import type { Category, CreateProductInput } from "@/types";
 
 const schema = z.object({
   name:        z.string().min(2,  "Name must be at least 2 characters"),
@@ -24,6 +23,8 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>;
 
 interface ProductFormProps {
+  /** Pre-fetched categories from the server — eliminates the client-side loading spinner */
+  categories:     Category[];
   defaultValues?: Partial<CreateProductInput>;
   onSubmit:       (data: CreateProductInput) => Promise<void>;
   submitLabel?:   string;
@@ -32,23 +33,16 @@ interface ProductFormProps {
 }
 
 export default function ProductForm({
+  categories,
   defaultValues,
   onSubmit,
   submitLabel,
   isLoading,
   isEdit,
 }: ProductFormProps) {
-  const [previewImage, setPreviewImage]           = useState(defaultValues?.image ?? "");
-  const [categoryOptions, setCategoryOptions]     = useState<SelectOption[]>([]);
-  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [previewImage, setPreviewImage] = useState(defaultValues?.image ?? "");
 
-  // Fetch categories from Supabase
-  useEffect(() => {
-    productService
-      .getCategories()
-      .then((cats) => setCategoryOptions(cats.map((c) => ({ label: c.name, value: c.id }))))
-      .finally(() => setCategoriesLoading(false));
-  }, []);
+  const categoryOptions = categories.map((c) => ({ label: c.name, value: c.id }));
 
   const {
     register,
@@ -124,11 +118,10 @@ export default function ProductForm({
         {/* Category */}
         <Select
           label="Category"
-          placeholder={categoriesLoading ? "Loading categories…" : "Select a category"}
+          placeholder="Select a category"
           options={categoryOptions}
           error={errors.categoryId?.message}
           required
-          disabled={categoriesLoading}
           {...register("categoryId")}
         />
 

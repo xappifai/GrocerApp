@@ -82,12 +82,6 @@ export default function LoginForm() {
             <p className="mt-2 text-sm text-gray-500">Sign in to your account to continue</p>
           </div>
 
-          <div className="mb-6 rounded-xl bg-amber-50 border border-amber-100 p-4">
-            <p className="text-xs font-semibold text-amber-700 mb-1">Demo Credentials</p>
-            <p className="text-xs text-amber-600">Admin: admin@grocerapp.com / admin123</p>
-            <p className="text-xs text-amber-600">Client: ahmed@example.com / client123</p>
-          </div>
-
           <form onSubmit={handleSubmit} className="space-y-4">
             <Input
               label="Email address"

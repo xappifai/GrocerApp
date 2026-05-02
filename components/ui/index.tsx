@@ -157,6 +157,8 @@ interface ConfirmModalProps {
   title?: string;
   message?: string;
   isLoading?: boolean;
+  /** Optional rich content rendered below (or instead of) the plain message */
+  children?: React.ReactNode;
 }
 
 export function ConfirmModal({
@@ -166,6 +168,7 @@ export function ConfirmModal({
   title = "Confirm Delete",
   message = "This action cannot be undone.",
   isLoading = false,
+  children,
 }: ConfirmModalProps) {
   return (
     <Modal
@@ -191,7 +194,7 @@ export function ConfirmModal({
         </>
       }
     >
-      <p className="text-sm text-gray-600">{message}</p>
+      {children ?? <p className="text-sm text-gray-600">{message}</p>}
     </Modal>
   );
 }

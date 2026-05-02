@@ -15,12 +15,17 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 -- TABLES
 -- ===========================================================================
 
--- Profiles (extends auth.users with name + role)
+-- Profiles (extends auth.users with name + role + delivery info)
 CREATE TABLE IF NOT EXISTS profiles (
   id          UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
   name        TEXT NOT NULL DEFAULT '',
   role        TEXT NOT NULL DEFAULT 'CLIENT'
                 CHECK (role IN ('ADMIN', 'CLIENT')),
+  phone       TEXT NOT NULL DEFAULT '',
+  address     TEXT NOT NULL DEFAULT '',
+  city        TEXT NOT NULL DEFAULT '',
+  latitude    NUMERIC,
+  longitude   NUMERIC,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -53,11 +58,13 @@ CREATE TABLE IF NOT EXISTS orders (
   user_name        TEXT NOT NULL,
   user_email       TEXT NOT NULL,
   status           TEXT NOT NULL DEFAULT 'PENDING'
-                     CHECK (status IN ('PENDING', 'PROCESSING', 'DELIVERED')),
-  total_price      NUMERIC(10, 2) NOT NULL CHECK (total_price >= 0),
+                     CHECK (status IN ('PENDING', 'PROCESSING', 'DELIVERED', 'CANCELLED')),
+  total_price      NUMERIC(10, 2) NOT NULL CHECK (total_price > 0),
   delivery_address TEXT NOT NULL,
   delivery_city    TEXT NOT NULL,
   delivery_phone   TEXT NOT NULL,
+  latitude         NUMERIC,
+  longitude        NUMERIC,
   created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -119,6 +126,8 @@ CREATE TRIGGER trg_orders_updated_at
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 -- Auto-create profile on signup
+-- NOTE: role is always forced to 'CLIENT' regardless of signup metadata.
+-- Promote to ADMIN manually via SQL only (see bottom of this file).
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
 BEGIN
@@ -126,7 +135,7 @@ BEGIN
   VALUES (
     NEW.id,
     COALESCE(NEW.raw_user_meta_data->>'name', ''),
-    COALESCE(NEW.raw_user_meta_data->>'role', 'CLIENT')
+    'CLIENT'
   )
   ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
@@ -209,7 +218,7 @@ CREATE POLICY "orders_user_select"
   ON orders FOR SELECT USING (auth.uid() = user_id);
 
 CREATE POLICY "orders_user_insert"
-  ON orders FOR INSERT WITH CHECK (auth.uid() = user_id);
+  ON orders FOR INSERT WITH CHECK (auth.uid() = user_id AND total_price > 0);
 
 CREATE POLICY "orders_admin_select"
   ON orders FOR SELECT USING (is_admin());

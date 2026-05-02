@@ -15,6 +15,7 @@ const STATUS_TABS: { label: string; value: OrderStatus | "ALL" }[] = [
   { label: "Pending",     value: "PENDING"    },
   { label: "Processing",  value: "PROCESSING" },
   { label: "Delivered",   value: "DELIVERED"  },
+  { label: "Cancelled",   value: "CANCELLED"  },
 ];
 
 interface Props {
@@ -73,10 +74,11 @@ export default function AdminOrdersContent({ initialOrders }: Props) {
   const countByStatus = (s: OrderStatus) => orders.filter((o) => o.status === s).length;
 
   const summaryCards = [
-    { label: "Total Orders", value: orders.length,             color: "bg-brand-50 text-brand-700 border-brand-100"     },
-    { label: "Pending",      value: countByStatus("PENDING"),   color: "bg-amber-50 text-amber-700 border-amber-100"     },
-    { label: "Processing",   value: countByStatus("PROCESSING"),color: "bg-blue-50 text-blue-700 border-blue-100"        },
+    { label: "Total Orders", value: orders.length,              color: "bg-brand-50 text-brand-700 border-brand-100"      },
+    { label: "Pending",      value: countByStatus("PENDING"),   color: "bg-amber-50 text-amber-700 border-amber-100"      },
+    { label: "Processing",   value: countByStatus("PROCESSING"),color: "bg-blue-50 text-blue-700 border-blue-100"         },
     { label: "Delivered",    value: countByStatus("DELIVERED"), color: "bg-emerald-50 text-emerald-700 border-emerald-100"},
+    { label: "Cancelled",    value: countByStatus("CANCELLED"), color: "bg-red-50 text-red-700 border-red-100"            },
   ];
 
   return (

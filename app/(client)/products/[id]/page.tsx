@@ -9,6 +9,15 @@ import { imageUrl } from "@/lib/utils";
 import { APP_NAME } from "@/lib/constants";
 import ProductActions from "./ProductActions";
 
+export const revalidate = 60;
+
+// Pre-render all product pages at build time; new ones rendered on first request.
+export async function generateStaticParams() {
+  const supabase = createClient();
+  const { data } = await supabase.from("products").select("id");
+  return (data ?? []).map((p) => ({ id: p.id as string }));
+}
+
 interface Props {
   params: { id: string };
 }
@@ -21,7 +30,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .eq("id", params.id)
     .single();
 
-  if (!data) return { title: "Product not found" };
+  // Return 404 metadata so crawlers receive a proper 404 status,
+  // not a 200 with a "not found" title.
+  if (!data) notFound();
 
   return {
     title: data.name as string,
@@ -29,7 +40,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       title: `${data.name} | ${APP_NAME}`,
       description: data.description as string,
-      images: data.image ? [{ url: imageUrl(data.image as string) }] : [],
+      images: data.image ? [{ url: imageUrl(data.image as string), alt: data.name as string }] : [],
       type: "website",
     },
   };
@@ -89,17 +100,22 @@ export default async function ProductDetailPage({ params }: Props) {
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="flex">
+            <div
+              className="flex"
+              role="img"
+              aria-label="Rating: 4 out of 5 stars"
+            >
               {Array.from({ length: 5 }).map((_, i) => (
                 <Star
                   key={i}
+                  aria-hidden="true"
                   className={`h-4 w-4 ${
                     i < 4 ? "fill-amber-400 text-amber-400" : "text-gray-200"
                   }`}
                 />
               ))}
             </div>
-            <span className="text-sm text-gray-500">(4.0)</span>
+            <span className="text-sm text-gray-500" aria-hidden="true">(4.0)</span>
           </div>
 
           <p className="text-gray-600 leading-relaxed">{product.description}</p>

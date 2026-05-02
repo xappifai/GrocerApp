@@ -8,6 +8,15 @@ import type {
   PaginatedResponse,
 } from "@/types";
 
+/**
+ * Escape ILIKE special characters so user input cannot cause
+ * catastrophic backtracking via uncontrolled wildcard patterns.
+ * Postgres ILIKE treats % (any sequence) and _ (any char) as wildcards.
+ */
+function escapeLike(term: string): string {
+  return term.replace(/[%_\\]/g, "\\$&");
+}
+
 export const productService = {
   async getAll(params?: {
     page?: number;
@@ -47,7 +56,7 @@ export const productService = {
     }
 
     if (params?.search?.trim()) {
-      const term = params.search.trim();
+      const term = escapeLike(params.search.trim());
       query = query.or(
         `name.ilike.%${term}%,description.ilike.%${term}%`
       );
@@ -94,7 +103,7 @@ export const productService = {
     return mapProduct(data as Record<string, unknown>);
   },
 
-  async update(id: string, input: UpdateProductInput): Promise<Product> {
+  async update(id: string, input: UpdateProductInput): Promise<void> {
     const supabase = createClient();
     const patch: Record<string, unknown> = {};
     if (input.name        !== undefined) patch.name        = input.name;
@@ -104,14 +113,13 @@ export const productService = {
     if (input.stock       !== undefined) patch.stock       = input.stock;
     if (input.categoryId  !== undefined) patch.category_id = input.categoryId;
 
-    const { data, error } = await supabase
+    // Only check for errors — no SELECT needed since the caller already has
+    // the product data and navigates away immediately after save.
+    const { error } = await supabase
       .from("products")
       .update(patch)
-      .eq("id", id)
-      .select("*, categories(*)")
-      .single();
+      .eq("id", id);
     if (error) throw new Error(error.message);
-    return mapProduct(data as Record<string, unknown>);
   },
 
   async delete(id: string): Promise<void> {

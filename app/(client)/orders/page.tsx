@@ -28,11 +28,13 @@ export default async function OrdersPage() {
   if (!user) redirect("/login?redirect=/orders");
 
   // Fetch this user's orders server-side (true SSR)
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("orders")
     .select(ORDER_SELECT)
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
+
+  if (error) throw new Error(`Failed to load orders: ${error.message}`);
 
   const orders = (data ?? []).map((r) => mapOrder(r as Record<string, unknown>));
 

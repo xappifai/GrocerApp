@@ -58,7 +58,7 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
             fill
             priority={priority}
             className="object-cover transition-transform duration-500 group-hover:scale-105"
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
           />
           {isOutOfStock && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/40">

@@ -9,6 +9,7 @@ import { PageLoader, EmptyState } from "@/components/ui";
 import { productService } from "@/services/productService";
 import { debounce } from "@/lib/utils";
 import type { Category, Product } from "@/types";
+import toast from "react-hot-toast";
 
 interface CategoryContentProps {
   category:         Category;
@@ -46,7 +47,7 @@ export default function CategoryContent({
         setTotal(res.total);
         setTotalPages(res.totalPages);
       } catch {
-        // silent
+        toast.error("Failed to load products. Please try again.");
       } finally {
         setIsLoading(false);
       }
@@ -98,11 +99,10 @@ export default function CategoryContent({
         <h1 className="font-display text-2xl font-bold text-gray-900 md:text-3xl">
           {category.name}
         </h1>
-        {!isLoading && (
-          <p className="mt-1 text-sm text-gray-500">
-            {total} product{total !== 1 ? "s" : ""} available
-          </p>
-        )}
+        {/* aria-live so screen readers announce when the count updates after a search */}
+        <p className="mt-1 text-sm text-gray-500 min-h-[1.25rem]" aria-live="polite" aria-atomic="true">
+          {!isLoading && `${total} product${total !== 1 ? "s" : ""} available`}
+        </p>
       </div>
 
       {/* Search */}

@@ -8,6 +8,7 @@ import { PageLoader, EmptyState } from "@/components/ui";
 import { productService } from "@/services/productService";
 import { debounce } from "@/lib/utils";
 import type { Category, Product } from "@/types";
+import toast from "react-hot-toast";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -173,7 +174,7 @@ export default function HomeContent({ sections }: HomeContentProps) {
       const res = await productService.getAll({ search: q, limit: 48 });
       setResults(res.data);
     } catch {
-      // silent
+      toast.error("Search failed. Please try again.");
     } finally {
       setIsSearching(false);
     }
@@ -273,12 +274,17 @@ export default function HomeContent({ sections }: HomeContentProps) {
 
       {/* ── Search bar ──────────────────────────────────────────────────── */}
       <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+        <label htmlFor="homepage-search" className="sr-only">
+          Search products
+        </label>
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" aria-hidden="true" />
         <input
-          type="text"
+          id="homepage-search"
+          type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search across all products…"
+          autoComplete="off"
           className="w-full rounded-xl border border-gray-200 bg-white pl-10 pr-10 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 transition-colors"
         />
         {search && (
@@ -287,7 +293,7 @@ export default function HomeContent({ sections }: HomeContentProps) {
             aria-label="Clear search"
             className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
           >
-            <X className="h-4 w-4" />
+            <X className="h-4 w-4" aria-hidden="true" />
           </button>
         )}
       </div>

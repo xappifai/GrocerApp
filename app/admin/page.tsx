@@ -33,7 +33,7 @@ export default async function AdminDashboard() {
 
   // Fetch all data in parallel
   const [ordersRes, productsCountRes, customersCountRes, recentRes] = await Promise.all([
-    supabase.from("orders").select("id, status, total_price"),
+    supabase.from("orders").select("id, status, total_price").limit(10000), // cap for stats aggregate
     supabase.from("products").select("id", { count: "exact", head: true }),
     supabase.from("profiles").select("id", { count: "exact", head: true }).eq("role", "CLIENT"),
     supabase.from("orders").select(ORDER_SELECT).order("created_at", { ascending: false }).limit(5),
@@ -77,14 +77,14 @@ export default async function AdminDashboard() {
         </div>
 
         <div className="overflow-hidden rounded-2xl bg-white shadow-card">
-          <table className="w-full text-left text-sm">
+          <table className="w-full text-left text-sm" aria-label="Recent orders">
             <thead className="border-b border-gray-100 bg-gray-50">
               <tr>
-                <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-400">Order</th>
-                <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-400">Customer</th>
-                <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-400">Total</th>
-                <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-400">Status</th>
-                <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-400">Date</th>
+                <th scope="col" className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-400">Order</th>
+                <th scope="col" className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-400">Customer</th>
+                <th scope="col" className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-400">Total</th>
+                <th scope="col" className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-400">Status</th>
+                <th scope="col" className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-400">Date</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
